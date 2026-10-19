@@ -31,9 +31,11 @@ class Transcriber {
       const id = ++this.sequence;
       const timer = setTimeout(() => {
         this.closed = true;
-        this.fail(new Error('Local transcription timed out. Restart the app.'));
+        this.fail(new Error(type === 'load'
+          ? 'The local speech engine did not start within two minutes. Restart the desktop app. If running from source, verify the model with node scripts/verify-model.mjs.'
+          : 'Local transcription timed out. Restart the app.'));
         this.worker.terminate();
-      }, 10 * 60 * 1000);
+      }, type === 'load' ? 2 * 60 * 1000 : 10 * 60 * 1000);
       this.pending.set(id, { resolve, reject, timer });
       this.worker.postMessage({ id, type, audio });
     });

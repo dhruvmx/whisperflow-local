@@ -25,6 +25,21 @@ try {
   });
   assert.equal(networkBlocked, true);
   assert.equal(await page.evaluate(() => typeof window.require), 'undefined');
+  // Reproduce a regular browser: a separate window with no preload/IPC bridge.
+  const unsupportedWindowPromise = desktop.waitForEvent('window');
+  await desktop.evaluate(async ({ BrowserWindow }) => {
+    const main = BrowserWindow.getAllWindows()[0];
+    const browserOnly = new BrowserWindow({ show: false, webPreferences: {
+      contextIsolation: true, nodeIntegration: false, sandbox: true
+    } });
+    await browserOnly.loadURL(main.webContents.getURL());
+  });
+  const browserOnly = await unsupportedWindowPromise;
+  await browserOnly.getByText('Open the desktop app', { exact: true }).first().waitFor();
+  assert.equal(await browserOnly.locator('#record').isDisabled(), true);
+  assert.match(await browserOnly.locator('#notice').textContent(), /Whisperflow Local\.exe/);
+  await browserOnly.close();
+  console.log('PASS: browser-only page shows launch instructions instead of an endless loading state.');
   if (fixture) {
     await page.locator('#record').click();
     await page.getByText('Listening to you', { exact: true }).waitFor();
@@ -54,4 +69,3 @@ try {
   assert.deepEqual(errors, []);
   console.log('PASS: desktop startup, local model load, renderer isolation, blocked network, no UI exceptions.');
 } finally { await desktop.close(); }
-

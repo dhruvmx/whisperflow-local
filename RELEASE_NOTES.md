@@ -1,6 +1,8 @@
 Whisperflow Local for Windows 10/11 x64.
 
-Download **Whisperflow Local 1.0.0.exe** and run it. This portable executable contains the desktop runtime, speech engine, and English Whisper tiny.en model. It extracts its application files before launching; allow time on the first start. No Node.js, Python, account, API key, or internet connection is needed to transcribe.
+Download the **Whisperflow Local .exe** asset and run it. This portable executable contains the desktop runtime, speech engine, and English Whisper tiny.en model. It extracts its application files before launching; allow time on the first start. No Node.js, Python, account, API key, or internet connection is needed to transcribe.
+
+Version 1.0.1 fixes the misleading permanent loading screen when the HTML page is opened in a regular browser. It now explains how to launch the desktop app, and desktop model startup has a two-minute timeout with an actionable error.
 
 Click the microphone to record, then click again to finish. Transcription previews arrive after each short speech segment. History is stored only on your computer. Audio is discarded after transcription.
 

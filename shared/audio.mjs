@@ -1,7 +1,7 @@
 export const SAMPLE_RATE = 16000;
 export const MAX_SECONDS = 300;
-export const MODEL_ID = 'onnx-community/whisper-tiny.en';
-export const MODEL_REVISION = '2575352';
+export const MODEL_ID = 'onnx-community/whisper-small';
+export const MODEL_REVISION = '36050c46d777d46dc4b5f43f6d90574fc38f8732';
 export const MODEL_FILES = ['config.json', 'generation_config.json', 'preprocessor_config.json',
   'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json',
   'onnx/encoder_model_quantized.onnx', 'onnx/decoder_model_merged_quantized.onnx'];

@@ -40,7 +40,7 @@ class HistoryStore {
     if (typeof text !== 'string' || !text.trim() || text.length > 100000 ||
       !Number.isFinite(duration) || duration < 0 || duration > 301) throw new Error('Invalid transcription.');
     return this.mutate(rows => [{ id: randomUUID(), text: text.trim(), duration,
-      createdAt: new Date().toISOString(), model: 'whisper-tiny.en / q8 / CPU' }, ...rows]);
+      createdAt: new Date().toISOString(), model: 'whisper-small / q8 / CPU' }, ...rows]);
   }
   remove(id) {
     if (typeof id !== 'string') throw new Error('Invalid history ID.');

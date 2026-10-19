@@ -1,7 +1,11 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('desktop', {
   loadEngine: () => ipcRenderer.invoke('engine:load'),
-  recordingState: active => ipcRenderer.invoke('record:state', active),
+  beginSession: () => ipcRenderer.invoke('record:begin'),
+  abortSession: id => ipcRenderer.invoke('record:abort', id),
+  updateState: state => ipcRenderer.invoke('record:state', state),
+  completeSession: value => ipcRenderer.invoke('record:complete', value),
+  notify: text => ipcRenderer.invoke('record:notice', text),
   transcribe: samples => ipcRenderer.invoke('engine:transcribe', samples),
   history: () => ipcRenderer.invoke('history:list'),
   save: entry => ipcRenderer.invoke('history:add', entry),
@@ -13,9 +17,14 @@ contextBridge.exposeInMainWorld('desktop', {
     ipcRenderer.on('engine:status', listener);
     return () => ipcRenderer.removeListener('engine:status', listener);
   },
-  onToggle: callback => {
+  onCommand: callback => {
+    const listener = (_, command) => callback(command);
+    ipcRenderer.on('record:command', listener);
+    return () => ipcRenderer.removeListener('record:command', listener);
+  },
+  onHistory: callback => {
     const listener = () => callback();
-    ipcRenderer.on('record:toggle', listener);
-    return () => ipcRenderer.removeListener('record:toggle', listener);
+    ipcRenderer.on('view:history', listener);
+    return () => ipcRenderer.removeListener('view:history', listener);
   }
 });

@@ -73,6 +73,6 @@ jobs:
         with:
           name: desktop-test-screenshots
           path: .test-artifacts/*.png
+          include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
-

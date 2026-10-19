@@ -31,7 +31,7 @@ parentPort.on('message', async ({ id, type, audio }) => {
     validateAudio(audio);
     if (rms(audio) < 0.002) { parentPort.postMessage({ id, result: '' }); return; }
     const transcribe = await load();
-    const result = await transcribe(audio, { chunk_length_s: 30, stride_length_s: 5, return_timestamps: false });
+    const result = await transcribe(audio, { language: 'en', task: 'transcribe', chunk_length_s: 30, stride_length_s: 5, return_timestamps: false });
     parentPort.postMessage({ id, result: result.text.trim() });
   } catch (error) { parentPort.postMessage({ id, error: error.message }); }
 });

@@ -1,16 +1,42 @@
 # Whisperflow Local
 
-A self-contained desktop dictation app with a minimalist dark interface, glowing microphone state, audio meter, periodic transcription previews, and searchable local history. Independent implementation; no proprietary source or exact reference UI was supplied.
+Private Windows desktop dictation with **hold-to-talk**, a small recording capsule, automatic paste, and the larger **Whisper small q8** model. All audio processing runs on your CPU. No account, API key, paid API or internet connection is required at runtime.
 
-**No API key. No paid API. All speech recognition runs on the CPU using downloaded Whisper weights.** The running app blocks HTTP(S)/WebSocket requests in Electron; the speech worker disables remote model loading and rejects fetch. Setup downloads public packages and model files, never sends recordings. Once installed, disconnect the internet and use it normally.
+## Download and use
 
-## Run the Windows app
+Download the `.exe` asset from [Releases](https://github.com/dhruvmx/whisperflow-local/releases/latest) and run it. The runtime and model are included. First launch extracts the bundled application. This is a Windows 10/11 x64 build. The executable is unsigned.
 
-Download the portable `.exe` from this repository's **Releases** page and run it. The executable includes the runtime and model. No browser, Node.js, Python, account, or internet connection is needed for transcription. To share with a friend, send them the downloaded `.exe`; they do not need access to this private source repository.
+1. Wait until the small capsule says **Ready**.
+2. Click inside the chat box or document where you want your words.
+3. **Hold Right Ctrl**, speak, then release it. Recording only runs while you hold the key. The capsule changes from **Listening** to **Transcribing**.
+4. Leave your destination field focused. Your text is pasted there when transcription finishes. The app does not press Enter or submit your message.
+5. Alternatively use **Ctrl + Shift + Space** once to start and once to finish. The capsule's microphone button also toggles recording without activating the main window.
+
+The main window's Record button records a local note. Closing the main window stops any active recording and hides it to the tray without confirmation prompts. Right-click the tray icon to open history, show/hide the indicator, or **Quit Whisperflow Local**. Quitting during recording finishes and saves the current recording first. The app never opens the history window when you start/stop via a shortcut.
+
+The system microphone permission still applies. If recording fails, check Windows Settings → Privacy & security → Microphone → Let desktop apps access your microphone.
+
+## Accuracy and performance
+
+Version 1.1 replaces tiny.en with **Whisper small**, a substantially larger model (about 250 MB of q8 weights). It generally recognizes speech better but takes more RAM and CPU time. This build transcribes English. Accents, noise, poor microphones, music and proper nouns can still affect accuracy; model size does not guarantee every word is correct.
+
+The app captures mono 16 kHz audio only during an active recording. Fifteen-second segments with a one-second overlap provide periodic previews. On release/stop, the remaining audio is processed and the final combined text is saved and pasted. Recordings are limited to five minutes. Speech recognition is not instantaneous and continues processing after you release the recording key; the microphone is released immediately.
+
+## Automatic paste behavior
+
+The app captures the active Windows window/native control when dictation starts and keeps the main UI hidden. Once processing completes, it puts the text on the clipboard and sends Ctrl+V only if that target is still focused and all shortcut modifiers are released. It never injects Enter. The original clipboard contents are replaced by your transcript.
+
+If you switch to another window or Windows blocks input to an elevated application, the capsule explains that the text was copied; use Ctrl+V manually. History retains the transcript. Some applications use a single native control for multiple internal fields, so keep the intended field focused until the paste finishes. Windows cannot always confirm whether a destination application accepted a paste. No application is elevated automatically.
+
+## Local history and privacy
+
+History is saved as plaintext JSON in the current account's Electron application-data directory, normally `%APPDATA%\Whisperflow Local\history.json`. Existing history from earlier releases is retained. Search, copy, export and deletion are available from the history window. Edited previews are archived automatically when starting another recording, rather than showing a confirmation dialog. Audio is held in memory and discarded after transcription.
+
+There is no remote telemetry in this application. Runtime HTTP(S)/WebSocket requests are blocked in Electron and remote model loading/fetch are disabled in the speech worker. The native integration checks only the Right Ctrl key for hold/release and modifier states needed for paste. It does not capture the contents of other applications or log general keyboard input. Initial installation/build downloads public packages, model files and a public test fixture; no user recordings are uploaded.
 
 ## Run from source
 
-Install Node.js 24 LTS or later. Clone the repository and run these commands once while online:
+Install Node.js 24 LTS or later, then run once online:
 
 ```powershell
 git clone https://github.com/dhruvmx/whisperflow-local.git
@@ -20,61 +46,33 @@ npm run setup:model
 npm start
 ```
 
-`npm ci` installs pinned dependencies from package-lock.json. Setup downloads roughly 44 MB of model/configuration files. It pins a model revision and records SHA-256 hashes in models/manifest.json, verifies existing files, writes downloads to .part files, and can be rerun after an interruption. No account is needed. Windows x64 is the primary target. No Python, CUDA, compiler, separate server, or API subscription is required.
+You can then disconnect from the internet. Opening `src/index.html` in a regular browser only displays instructions; the desktop engine requires `npm start` or the packaged `.exe`.
 
-## Use it
+Model setup pins a repository revision, writes downloads to `.part` files and records SHA-256 digests in `models/manifest.json`. Interrupted setup can be rerun. Packaging includes only the selected small-model assets, even if an older tiny-model cache remains on the development machine.
 
-1. Wait for “Ready when you are.” Model initialization runs in a background worker.
-2. Click the microphone or press **Ctrl + Shift + Space** to start/stop. The shortcut works while another app has focus and shows the dictation window. It does not inject text into other apps.
-3. Speak in English. Previews update when each 15-second window finishes processing. CPU speed determines the delay. A one-second overlap and text-boundary matching reduce repeated or lost words; this is not token streaming.
-4. Stop to process the last segment and save the combined text to local history. Recordings stop automatically at five minutes. The mic is released immediately; processing may continue.
-5. Copy, export as .txt, or open History to search, copy, export, and delete saved transcriptions. The preview is editable after recording; edits are kept through copy/export, and do not modify the original history entry.
-
-The app never requests the microphone until you press Record. If access is denied, enable **Windows Settings → Privacy & security → Microphone → Microphone access / Let desktop apps access your microphone**. Other apps may hold exclusive access to a device. A failed save keeps the transcript visible and offers a retry. Closing during recording or transcription asks before discarding unsaved work.
-
-## Build a portable desktop executable
+## Build and share
 
 ```powershell
 npm run dist
 ```
 
-This bundles Electron, JavaScript, native CPU inference libraries, and the model into a portable Windows executable under `release/`. First-time packaging may download public build tools. The resulting executable needs neither Node nor an internet connection on the target Windows x64 computer. An unsigned local build may trigger Windows SmartScreen. `npm run pack` builds an unpacked app folder for inspection. Other operating-system targets need matching platform builds and microphone entitlements; those are not validated here.
+The portable executable appears under `release/` and includes Electron, ONNX Runtime, Koffi and the model. Your friend needs only the downloaded `.exe`, not Node, Python, a browser, or repository access. Verify the SHA-256 checksum supplied with the release. `npm run pack` creates an unpacked application folder; keep that entire folder together when sharing it instead of the portable executable.
 
-The included GitHub Actions workflow builds on a standard Windows runner, tests the local engine and desktop flow, and publishes the executable and its SHA-256 checksum as a private release. Source changes on `main` trigger a build; it can also be started manually from Actions. No OpenAI API credentials are used in the build or the app.
+The GitHub workflow tests and builds on a standard Windows runner and publishes a private release. Changes on `main` trigger a run; it can also be started manually in Actions. Test audio is synthetic fixture input, not a user microphone upload.
 
-## Step-by-step implementation map
+## Implementation map
 
-1. **Desktop boundary** — electron/main.cjs creates a sandboxed renderer with context isolation, validates the sender of every IPC request, limits permissions to audio, blocks remote requests and navigation, registers the global shortcut, and chooses the OS data directory. electron/preload.cjs exposes only specific operations.
-2. **Frontend** — src/index.html and styles.css define the interface without external fonts, assets, or CDNs. src/app.js connects buttons, state, processing queue, preview, history, clipboard, export, and errors. src/state.js is the small observable state store.
-3. **Audio** — src/audio/recorder.js requests getUserMedia audio, creates a 16 kHz AudioContext, collects mono PCM via capture-worklet.js, updates the meter, and emits 15-second windows with one-second overlap. A muted output keeps capture active without playing your microphone. Stop flushes the last worklet block and releases all devices and audio nodes.
-4. **Local inference** — electron/transcriber.cjs owns a dedicated Node worker with request IDs, bounded single-job dispatch, lifecycle rejection and timeout handling. transcription-worker.mjs loads Transformers.js with local_files_only, q8 weights and the CPU provider. The UI remains responsive while ONNX runs. shared/audio.mjs validates audio and merges preview boundaries. A conservative RMS gate skips near-silent segments.
-5. **Persistence** — electron/history.cjs serializes mutations and writes history.json via a temporary file and atomic rename. Entries have UUID, UTC timestamp, duration, text, and model identity. Malformed history produces an error without overwriting the original. Audio is held only in RAM and discarded after each recording. History is ordinary plaintext JSON, not encrypted.
-6. **Offline distribution** — scripts/download-model.mjs downloads the model during setup, separately from the app. The test-audio downloader is development-only. verify-model.mjs checks hashes before packaging; electron-builder copies model assets alongside the application resources and unpacks native libraries.
+1. **Desktop boundary** — `electron/main.cjs` owns the sandboxed history window, non-focusable overlay, tray, permissions and validated IPC. Shortcuts never call `window.show()`.
+2. **Dictation state** — `electron/dictation-controller.cjs` reserves one recording session, handles press/release races, rejects duplicate delivery and keeps a transient destination token.
+3. **Windows integration** — `electron/windows.cjs` uses Koffi and Win32 APIs for Right Ctrl press/release, foreground/control identity and SendInput Ctrl+V. This module performs no network access.
+4. **Frontend** — `src/app.js`, `state.js`, `index.html` and `styles.css` manage local notes, preview, history, errors and the recording queue. `bootstrap.js` explains browser-only launch attempts instead of hanging.
+5. **Compact indicator** — `src/overlay.html`, `.css`, `.js` receive only sanitized state/level messages. Its separate preload exposes only indicator state and a recording toggle.
+6. **Audio** — `src/audio/recorder.js` requests the microphone, runs a 16 kHz AudioContext and mono AudioWorklet, emits overlapping segments and releases all tracks/nodes on stop.
+7. **Speech engine** — `electron/transcriber.cjs` dispatches bounded jobs to `transcription-worker.mjs`. Transformers.js loads local q8 Whisper small weights on the CPU. The worker runs outside the UI thread, rejects fetch and gates near-silent audio.
+8. **Persistence** — `electron/history.cjs` serializes mutations, atomically replaces history JSON, assigns UUID/timestamps and preserves corrupt files rather than overwriting them.
+9. **Packaging and tests** — `scripts/` handles setup, integrity verification, offline inference and desktop checks. The desktop check launches a second application process to verify actual foreground paste, native hotkeys and absence of recording dialogs.
 
-```text
-whisperflow-local/
-  electron/                  Main process, IPC, history, speech worker
-  src/
-    audio/                   Recorder and AudioWorklet
-    app.js                   UI orchestration
-    state.js                 Global state
-    index.html, styles.css   Interface
-  shared/audio.mjs           Constants, validation, overlap merging
-  models/                    Local weights and integrity manifest
-  scripts/                   Setup, validation, integration checks
-  tests/                     Audio and persistence tests
-  package.json
-  package-lock.json
-  .github/workflows/         Windows tests, packaging and release publication
-  RELEASE_NOTES.md            Sharing and launch instructions
-  THIRD_PARTY.md, LICENSE
-```
-
-## Storage and logging
-
-Electron uses the current account's application data folder, normally `%APPDATA%\Whisperflow Local\history.json` on Windows. Portable Electron may use its executable-derived application data name; inspect the OS application data folder if necessary. Each entry is a local transcription log. There is no remote logging or telemetry in this app. Console diagnostics contain startup/engine errors rather than audio recordings. Back up history.json to preserve history; delete entries through the app. Deletion is ordinary file replacement, not secure forensic erasure.
-
-## Verify locally
+## Verification
 
 ```powershell
 npm test
@@ -83,14 +81,13 @@ npm run test:engine -- "C:\path\to\speech-16khz-mono-pcm16.wav"
 npm run test:desktop
 ```
 
-For a full automated mic-to-history check, supply the same WAV to `npm run test:desktop -- "C:\path\to\speech.wav"`. The desktop test uses a synthetic microphone feed and a separate local test profile. It expects the standard JFK example speech for its content assertion. It also tests clipboard, search, disk persistence, reload, isolation and a blocked network request. A physical microphone still needs a manual check on your device.
+For the full fixture-based desktop test:
 
-## Scope and limits
+```powershell
+node scripts/download-test-audio.mjs
+npm run test:desktop -- .test-artifacts/jfk-16k.wav
+```
 
-- English-only tiny.en prioritizes small downloads and CPU speed. Accents, noise, music and proper nouns affect accuracy. Whisper may hallucinate speech in nonspeech audio; the simple silence gate is not a full voice-activity detector.
-- Segment previews may revise or repeat words near boundaries. This implementation uses text overlap matching rather than a full streaming decoder. Repeated intentional phrases can occasionally be merged.
-- Five-minute recording cap bounds memory; processing queues can lag on slow CPUs. Do not close the app while processing if you want the complete result.
-- No cloud rewriting, login, automatic punctuation cleanup model, auto-paste, or proprietary Whisperflow integrations are implemented. Whisper itself generally supplies punctuation.
-- Read THIRD_PARTY.md before redistributing. The local open-source Whisper model was originally developed by OpenAI; using its weights offline does not use OpenAI API credits.
+This checks the browser-only error state, actual microphone capture with a test feed, offline speech, clipboard/history persistence, Right Ctrl hold/release, the toggle shortcut, automatic paste into another process and no main-window activation. A physical microphone and OS-specific permissions still need checking on the receiving computer.
 
-Implementation references: [Transformers.js local models](https://huggingface.co/docs/transformers.js/custom_usage), [Whisper ONNX assets](https://huggingface.co/onnx-community/whisper-tiny.en/tree/main), [Electron security](https://www.electronjs.org/docs/latest/tutorial/security).
+This is an independent implementation inspired by the requested interaction, not affiliated with Wispr Flow or Whisperflow. See `THIRD_PARTY.md` and `LICENSE` before redistributing. The open-source Whisper model was developed by OpenAI; running its downloaded weights locally does not consume OpenAI API credits.

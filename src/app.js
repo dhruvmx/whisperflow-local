@@ -3,14 +3,18 @@ import { Recorder } from './audio/recorder.js';
 import { appendTranscript } from '../shared/audio.mjs';
 const $ = selector => document.querySelector(selector);
 const api = window.desktop;
-const store = createStore({ phase: 'loading', transcript: '', history: [], elapsed: 0, view: 'dictation' });
-let recorder, queue = Promise.resolve(), chunkError, unsavedEntry;
+const store = createStore({ phase: 'loading', transcript: '', history: [], elapsed: 0, level: 0, view: 'dictation' });
+let recorder, queue = Promise.resolve(), chunkError, unsavedEntry, sessionId;
+let savedText = '', startInFlight = false, stopAfterStart = false;
 const bars = Array.from({ length: 35 }, (_, i) => {
   const bar = document.createElement('i'); $('#wave').append(bar); return bar;
 });
 const time = seconds => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`;
 function notice(message = '') { $('#notice').hidden = !message; $('#notice').textContent = message; }
-function report(error) { notice(error.message || String(error)); }
+function report(error) {
+  const message = error.message || String(error); notice(message);
+  api.notify(message).catch(console.error);
+}
 function safely(action) { return (...args) => Promise.resolve().then(() => action(...args)).catch(report); }
 store.subscribe(state => {
   const { phase } = state;
@@ -34,6 +38,7 @@ store.subscribe(state => {
   $('#dictation-tab').classList.toggle('active', state.view === 'dictation');
   $('#history-tab').classList.toggle('active', state.view === 'history');
   $('#page-name').textContent = state.view === 'dictation' ? 'Dictation' : 'History';
+  api.updateState({ phase: state.phase, elapsed: state.elapsed, level: state.level }).catch(console.error);
 });
 
 function enqueue(samples) {
@@ -50,6 +55,7 @@ async function saveEntry() {
   if (!unsavedEntry) return;
   try {
     const history = await api.save(unsavedEntry);
+    savedText = unsavedEntry.text;
     unsavedEntry = undefined;
     $('#retry-save').hidden = true;
     $('#save-status').textContent = 'Saved to local history. Audio discarded.';
@@ -60,43 +66,54 @@ async function saveEntry() {
     throw error;
   }
 }
-async function start() {
-  notice();
-  if (unsavedEntry) { await saveEntry(); }
-  // Do not silently erase text the user has typed or edited.
-  if (store.get().transcript && !confirm('Start a new recording? The current preview will be cleared. Saved history is kept; copy or export any unsaved edits first.')) return;
-  store.set({ phase: 'requesting', transcript: '', elapsed: 0 });
-  await api.recordingState(true);
-  queue = Promise.resolve(); chunkError = undefined;
-  recorder = new Recorder({ onChunk: enqueue,
-    onLevel: (level, elapsed) => {
-      store.set({ elapsed });
-      bars.forEach((bar, i) => { bar.style.height = `${4 + Math.min(1, level * 10) * (8 + 23 * Math.abs(Math.sin(i * 1.7 + elapsed * 7)))}px`; });
-    }, onLimit: safely(stop)
-  });
+async function start(pendingId) {
+  if (store.get().phase !== 'ready' || startInFlight) return;
+  startInFlight = true; stopAfterStart = false; sessionId = pendingId;
   try {
+    notice();
+    if (unsavedEntry) await saveEntry();
+    // Preserve edited text as another local history entry, without an interrupting dialog.
+    if (store.get().transcript.trim() && store.get().transcript !== savedText) {
+      unsavedEntry = { text: store.get().transcript, duration: store.get().elapsed };
+      await saveEntry();
+    }
+    sessionId = await api.beginSession();
+    store.set({ phase: 'requesting', transcript: '', elapsed: 0, level: 0, view: 'dictation' });
+    queue = Promise.resolve(); chunkError = undefined;
+    recorder = new Recorder({ onChunk: enqueue,
+      onLevel: (level, elapsed) => {
+        store.set({ elapsed, level: Math.min(1, level * 10) });
+        bars.forEach((bar, i) => { bar.style.height = `${4 + Math.min(1, level * 10) * (8 + 23 * Math.abs(Math.sin(i * 1.7 + elapsed * 7)))}px`; });
+      }, onLimit: safely(stop)
+    });
     await recorder.start(); store.set({ phase: 'recording' });
     $('#save-status').textContent = 'Local preview · no audio is written to disk.';
+    if (stopAfterStart) await stop();
   } catch (error) {
-    recorder = undefined; store.set({ phase: 'ready' }); await api.recordingState(false);
-    throw new Error(`Microphone unavailable: ${error.message} On Windows, enable Settings → Privacy & security → Microphone → Let desktop apps access your microphone.`);
-  }
+    await recorder?.dispose(); recorder = undefined;
+    await api.abortSession(sessionId); sessionId = undefined;
+    store.set({ phase: 'ready', level: 0 }); throw error;
+  } finally { startInFlight = false; }
 }
 async function stop() {
   if (!recorder || store.get().phase !== 'recording') return;
-  store.set({ phase: 'finishing' });
+  store.set({ phase: 'finishing', level: 0 });
   try {
     const duration = await recorder.stop();
     recorder = undefined;
     await queue;
     if (store.get().transcript.trim()) {
       unsavedEntry = { text: store.get().transcript, duration };
-      await saveEntry();
+      try { await saveEntry(); } catch (error) { report(error); }
     } else $('#save-status').textContent = 'No speech detected. Try moving closer to the microphone.';
+    const result = await api.completeSession({ id: sessionId, text: chunkError ? '' : store.get().transcript });
+    if (store.get().transcript.trim()) $('#save-status').textContent = unsavedEntry
+      ? (result.pasted ? 'Pasted. Local history save failed; use Retry saving.' : 'Text ready. Use Copy, Export, or Retry saving.')
+      : (result.pasted ? 'Pasted into your text box. A copy is kept in local history.' : 'Saved to local history. Audio discarded.');
     if (chunkError) throw new Error(`Some audio could not be transcribed: ${chunkError.message} Any recovered text is shown and saved.`);
   } finally {
-    recorder = undefined; store.set({ phase: 'ready' });
-    await api.recordingState(false);
+    await api.abortSession(sessionId); sessionId = undefined;
+    recorder = undefined; store.set({ phase: 'ready', level: 0 });
     bars.forEach(bar => { bar.style.height = '4px'; });
   }
 }
@@ -105,7 +122,14 @@ const toggle = safely(async () => {
   else if (store.get().phase === 'recording') await stop();
 });
 $('#record').addEventListener('click', toggle);
-api.onToggle(toggle);
+api.onCommand(safely(async command => {
+  if (command.action === 'start') await start(command.id);
+  else if (command.action === 'stop') {
+    if (startInFlight || store.get().phase === 'requesting') stopAfterStart = true;
+    else await stop();
+  }
+}));
+api.onHistory(() => { store.set({ view: 'history' }); renderHistory(); });
 api.onStatus(status => { $('#status-label').textContent = status; });
 $('#copy').addEventListener('click', safely(async () => { await api.copy(store.get().transcript); $('#save-status').textContent = 'Copied to clipboard.'; }));
 $('#export').addEventListener('click', safely(async () => { if (await api.exportText(store.get().transcript)) $('#save-status').textContent = 'Text exported.'; }));

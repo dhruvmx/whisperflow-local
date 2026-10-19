@@ -12,7 +12,7 @@
   }
 
   const bridge = window.desktop;
-  if (!bridge || !['loadEngine', 'history', 'transcribe', 'onToggle', 'onStatus'].every(key => typeof bridge[key] === 'function')) {
+  if (!bridge || !['loadEngine', 'history', 'transcribe', 'onCommand', 'onStatus'].every(key => typeof bridge[key] === 'function')) {
     showStartupError('Open the desktop app',
       'This page needs the desktop speech engine. Close this browser tab and open Whisperflow Local.exe. If running from source, use npm start in the application folder.');
     return;

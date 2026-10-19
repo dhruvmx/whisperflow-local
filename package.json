@@ -1,6 +1,6 @@
 {
   "name": "whisperflow-local",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Private, offline desktop dictation powered by Whisper",
   "author": "Whisperflow Local contributors",
   "license": "MIT",
@@ -15,16 +15,50 @@
     "dist": "node scripts/verify-model.mjs && electron-builder --win portable",
     "pack": "node scripts/verify-model.mjs && electron-builder --dir"
   },
-  "dependencies": { "@huggingface/transformers": "4.3.1" },
-  "devDependencies": { "electron": "44.9.0", "electron-builder": "26.15.3", "playwright-core": "1.64.1" },
+  "dependencies": {
+    "@huggingface/transformers": "4.3.1",
+    "koffi": "3.3.3"
+  },
+  "devDependencies": {
+    "electron": "44.9.0",
+    "electron-builder": "26.15.3",
+    "playwright-core": "1.64.1"
+  },
   "build": {
     "appId": "local.whisperflow.desktop",
     "productName": "Whisperflow Local",
-    "toolsets": { "nsis": "1.2.1" },
-    "directories": { "output": "release" },
-    "files": ["electron/**/*", "src/**/*", "shared/**/*", "package.json", "LICENSE", "THIRD_PARTY.md"],
-    "asarUnpack": ["node_modules/onnxruntime-node/**/*", "node_modules/sharp/**/*", "node_modules/@img/**/*"],
-    "extraResources": [{ "from": "models", "to": "models" }],
-    "win": { "target": "portable" }
+    "toolsets": {
+      "nsis": "1.2.1"
+    },
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/**/*",
+      "src/**/*",
+      "shared/**/*",
+      "package.json",
+      "LICENSE",
+      "THIRD_PARTY.md"
+    ],
+    "asarUnpack": [
+      "node_modules/koffi/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "models",
+        "to": "models",
+        "filter": [
+          "manifest.json",
+          "onnx-community/whisper-small/**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": "portable"
+    }
   }
 }

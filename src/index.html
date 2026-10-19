@@ -19,11 +19,11 @@
       <div class="studio">
         <div class="studio-top"><span><i class="status-dot" id="status-dot"></i> <span id="status-label">Preparing your workspace</span></span><span id="timer">00:00</span></div>
         <div class="record-zone"><div class="orb-wrap"><button id="record" class="orb" disabled aria-label="Start recording"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="11" y="4" width="10" height="17" rx="5"/><path d="M7 15v2a9 9 0 0 0 18 0v-2M16 26v4m-5 0h10"/></svg></button></div><h2 id="record-label">Loading local engine</h2><p id="record-help">The first load can take a moment.</p><div id="wave" class="wave" aria-hidden="true"></div></div>
-        <div class="studio-bottom"><span>Whisper tiny.en <span class="muted">· English · CPU</span></span><span class="keyhint">Ctrl + Shift + Space</span></div>
+        <div class="studio-bottom"><span>Whisper small <span class="muted">· English · CPU · higher accuracy</span></span><span class="keyhint">Hold Right Ctrl · Ctrl + Shift + Space to toggle</span></div>
       </div>
       <div id="notice" class="notice" role="alert" hidden></div>
       <section class="preview"><div class="panel-heading"><h3>Transcription <span class="chip" id="preview-state">PREVIEW</span></h3><div><button id="copy" class="text-button" disabled>Copy text</button><button id="export" class="text-button" disabled>Export ↗</button></div></div><textarea id="transcript" aria-label="Transcription text" placeholder="Your words will appear here. Take a breath, press record, and let your thoughts flow." spellcheck="false"></textarea><div class="preview-footer"><span id="word-count">0 words</span><span id="save-status">Audio stays in memory and is discarded after transcription.</span></div><button id="retry-save" class="text-button" hidden>Retry saving transcript</button></section>
-      <div class="feature-row"><span>◇ &nbsp; Fully offline</span><span>⌁ &nbsp; Local speech engine</span><span>◷ &nbsp; Saved on your device</span></div>
+      <div class="feature-row"><span>◇ &nbsp; Fully offline</span><span>⌁ &nbsp; Hold Right Ctrl to dictate into your text box</span><span>◷ &nbsp; Close to tray</span></div>
     </section>
     <section id="history-view" hidden><div class="eyebrow">YOUR WORDS, KEPT CLOSE.</div><h1>Thoughts, collected.</h1><p class="intro">Your transcription history is saved only on this computer.</p><input id="search" type="search" placeholder="Search your transcriptions…" aria-label="Search history"><div id="history-list"></div></section>
   </main>

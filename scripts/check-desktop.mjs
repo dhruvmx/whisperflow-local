@@ -3,15 +3,16 @@ import assert from 'node:assert/strict';
 import { mkdir, readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = path.resolve(fileURLToPath(new URL('../', import.meta.url)));
 const artifacts = path.join(root, '.test-artifacts');
 await mkdir(artifacts, { recursive: true });
 const env = { ...process.env, WHISPERFLOW_TEST_DATA: path.join(artifacts, `profile-${Date.now()}`) };
 delete env.ELECTRON_RUN_AS_NODE;
+await mkdir(env.WHISPERFLOW_TEST_DATA, { recursive: true });
 const fixture = process.argv[2];
-const args = [root];
+const args = ['.'];
 if (fixture) args.push('--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${path.resolve(fixture)}`);
-const desktop = await _electron.launch({ args, env, timeout: 60000 });
+const desktop = await _electron.launch({ args, cwd: root, env, timeout: 60000 });
 try {
   const page = await desktop.firstWindow();
   const errors = [];
@@ -53,3 +54,4 @@ try {
   assert.deepEqual(errors, []);
   console.log('PASS: desktop startup, local model load, renderer isolation, blocked network, no UI exceptions.');
 } finally { await desktop.close(); }
+

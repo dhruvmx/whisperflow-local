@@ -13,6 +13,10 @@ const fixture = process.argv[2];
 const args = ['.'];
 if (fixture) args.push('--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${path.resolve(fixture)}`);
 const desktop = await _electron.launch({ args, cwd: root, env, timeout: 60000 });
+const nativeCall = (method, ...args) => desktop.evaluate(({ app }, { method, args }) => {
+  const load = process.getBuiltinModule('module').createRequire(app.getAppPath() + '/package.json');
+  return load('./electron/windows.cjs').createWindowsIntegration()[method](...args);
+}, { method, args });
 try {
   const page = await desktop.firstWindow();
   const errors = [];
@@ -82,15 +86,12 @@ try {
         await target.evaluate(({ BrowserWindow }) => { const w = BrowserWindow.getAllWindows()[0]; w.show(); w.focus(); });
         await fieldPage.locator('#target').click();
         const expectedPid = await target.evaluate(() => process.pid);
-        const captured = await desktop.evaluate(({ app }) =>
-          require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs')).createWindowsIntegration().captureTarget());
+        const captured = await nativeCall('captureTarget');
         assert.equal(captured?.pid, expectedPid, 'The external text box must have OS focus.');
-        await desktop.evaluate(({ app }) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().sendKeys([{ key: 0xa3 }]));
+        await nativeCall('sendKeys', [{ key: 0xa3 }]);
         await page.getByText('Listening to you', { exact: true }).waitFor({ timeout: 15000 });
         await page.waitForTimeout(6000);
-        await desktop.evaluate(({ app }) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().sendKeys([{ key: 0xa3, up: true }]));
+        await nativeCall('sendKeys', [{ key: 0xa3, up: true }]);
         await page.getByText('Ready when you are', { exact: true }).waitFor({ timeout: 180000 });
         const dictated = await fieldPage.locator('#target').inputValue();
         assert.match(dictated, /fellow|Americans|country|ask/i);
@@ -101,23 +102,19 @@ try {
         // Test the existing toggle chord too, with no reset/new-recording confirmation.
         await fieldPage.locator('#target').fill('');
         const toggleKeys = [{ key: 0x11 }, { key: 0x10 }, { key: 0x20 }, { key: 0x20, up: true }, { key: 0x10, up: true }, { key: 0x11, up: true }];
-        await desktop.evaluate(({ app }, keys) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().sendKeys(keys), toggleKeys);
+        await nativeCall('sendKeys', toggleKeys);
         await page.getByText('Listening to you', { exact: true }).waitFor({ timeout: 15000 });
         await page.waitForTimeout(6000);
-        await desktop.evaluate(({ app }, keys) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().sendKeys(keys), toggleKeys);
+        await nativeCall('sendKeys', toggleKeys);
         await page.getByText('Ready when you are', { exact: true }).waitFor({ timeout: 180000 });
         assert.match(await fieldPage.locator('#target').inputValue(), /fellow|Americans|country|ask/i);
         const indicator = desktop.windows().find(p => p.url().endsWith('/src/overlay.html'));
         assert.ok(indicator, 'The compact recording indicator must exist.');
         await indicator.screenshot({ path: path.join(artifacts, 'recording-indicator.png') });
-        assert.equal(await desktop.evaluate(({ app }) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().captureTarget()?.pid), expectedPid);
+        assert.equal((await nativeCall('captureTarget'))?.pid, expectedPid);
         console.log('PASS: native Right Ctrl hold/release, native toggle shortcut, external-app auto-paste, no Enter, close-to-tray, no main-window activation.');
       } finally {
-        await desktop.evaluate(({ app }) => require(require('node:path').join(app.getAppPath(), 'electron/windows.cjs'))
-          .createWindowsIntegration().sendKeys([{ key: 0xa3, up: true }, { key: 0x11, up: true }, { key: 0x10, up: true }]));
+        await nativeCall('sendKeys', [{ key: 0xa3, up: true }, { key: 0x11, up: true }, { key: 0x10, up: true }]);
         await target.close();
       }
     }
@@ -126,3 +123,4 @@ try {
   assert.deepEqual(errors, []);
   console.log('PASS: desktop startup, local model load, renderer isolation, blocked network, no UI exceptions.');
 } finally { await desktop.close(); }
+
